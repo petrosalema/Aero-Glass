@@ -2,14 +2,39 @@
 #include <stdio.h>
 #include <psapi.h>
 
-static void changeWindowOpacity(HWND, float);
-static BOOL CALLBACK onEnumWindow(HWND, LPARAM);
 typedef BOOL (WINAPI *SetLayeredWindowAttributes_t) (HWND, COLORREF, BYTE, DWORD);
 static SetLayeredWindowAttributes_t SetLayeredWindowAttributes;
-const char *format = " %-4d  %-15s %s\n";
+static void changeWindowOpacity(HWND, float);
+static BOOL CALLBACK onEnumWindow(HWND, LPARAM);
+static const char *format = " %-4d  %-15s %s\n";
+static const char *program_name;
+static const char *image_name;
+static double opacity;
 
-int main(int argc, char**argv)
+void usage()
 {
+	printf("\
+Usage: %s IMAGE OPACITY\n\
+\n\
+IMAGE     Name of the process image(s) whose windows' opacity is to be changed.\n\
+OPACITY   Opacity value (0.0=invisible, 1.0=opaque)\n\
+\n\
+Change the opacity of visible Aero windows.\n\
+", program_name);
+}
+
+int main(int argc, char **argv)
+{
+	program_name = "aeroglass"; // argv[0];
+
+	if (1 == argc) {
+		usage();
+		return 0;
+	}
+
+	image_name = argv[1];
+	opacity = argc > 2 ? atof(argv[2]) : 1.0;
+
 	HMODULE User32DLL = LoadLibrary(TEXT("USER32.DLL"));
 
 	if (!User32DLL) {
@@ -42,9 +67,6 @@ static BOOL CALLBACK onEnumWindow(HWND hwnd, LPARAM lparam)
 	DWORD pid;
 	GetWindowThreadProcessId(hwnd, &pid);
 
-	char text[MAX_PATH];
-	GetWindowText(hwnd, text, sizeof(text));
-
 	HANDLE process = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ,
 		FALSE, pid);
 
@@ -52,13 +74,18 @@ static BOOL CALLBACK onEnumWindow(HWND hwnd, LPARAM lparam)
 		return TRUE;
 	}
 
-	char processName[MAX_PATH];
-	// GetModuleBaseName or GetModuleFileNameEx
-	GetModuleBaseName(process, NULL, processName, sizeof(processName));
+	char process_name[MAX_PATH];
+	GetModuleBaseName(process, NULL, process_name, sizeof(process_name));
 
-	//changeWindowOpacity(hwnd, 1.0);
+	if (0 != strcmp(process_name, image_name)) {
+		return TRUE;
+	}
 
-	printf(format, pid, processName, text);
+	changeWindowOpacity(hwnd, opacity);
+
+	char text[MAX_PATH];
+	GetWindowText(hwnd, text, sizeof(text));
+	printf(format, pid, process_name, text);
 
 	CloseHandle(process);
 
