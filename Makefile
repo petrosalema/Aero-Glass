@@ -6,7 +6,7 @@ aeroglass: aeroglass.o
 	$(CC) -o aeroglass aeroglass.o -lpsapi 
 
 aeroglass.o: clean
-	$(CC) -c aeroglass.c
+	$(CC) -Wall -c aeroglass.c
 
 clean: aeroglass.c
 	rm -f aeroglass aeroglass.o
